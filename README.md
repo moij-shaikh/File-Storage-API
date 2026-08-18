@@ -18,12 +18,5 @@ A backend API for Storing File like Images , Text file , Videos etc Online , Bui
 - Redis
 - JWT
 
-# Project Structure 
-File_Storage_API/
-|--routers/
-|-- database.py
-|-- logger.py
-|-- main.py
-|-- schemas.py
-|-- utils.py
+
 
