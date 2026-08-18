@@ -2,7 +2,7 @@
 
 A backend API for Storing File like Images , Text file , Videos etc Online , Build with Python , Fastapi and supabase.
 
-#Features
+# Features
 - User registration and login
 - JWT authentication
 - Email verification
