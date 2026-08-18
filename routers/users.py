@@ -114,24 +114,7 @@ def handle_refresh_token(req:Request):
     }
     
     
-@router.get("/dashboard",tags=["DashBoard"],response_class=HTMLResponse)
-def user_dashboard(user:str=Depends(get_current_verified_user)):
-    html=f"""
-<h1>Welcome {user}</h1>
-<br><br>
-<p> You can make backup of your Documents here . </P><br>
-<p>you can </p>
-<ul>
-<li>Upload</li>
-<li>View</li>
-<li>Rename</li>
-<li>Delete</li>
-<li>Download</li>
-</ul>
 
-
-"""
-    return html
 
     
 @router.post("/logout",tags=["User"])
