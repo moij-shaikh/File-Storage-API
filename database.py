@@ -1,12 +1,11 @@
-from sqlalchemy import create_engine , ForeignKey
-from sqlalchemy.orm import Mapped,mapped_column,DeclarativeBase,sessionmaker
-import os 
-from dotenv import load_dotenv
-load_dotenv()
-import logging
+from sqlalchemy import  ForeignKey
+from sqlalchemy.orm import Mapped,mapped_column,DeclarativeBase
+from sqlalchemy.ext.asyncio import create_async_engine , async_sessionmaker
 
-engine=create_engine(os.getenv("DATABASE_URL"))
-make_session=sessionmaker(bind=engine)
+from config import DATABASE_URL
+
+engine=create_async_engine(DATABASE_URL)
+make_session=async_sessionmaker(bind=engine,expire_on_commit=False)
 
 class Base(DeclarativeBase):
     pass
@@ -26,14 +25,10 @@ class UserFile(Base):
     file_type:Mapped[str]
     username:Mapped[str]=mapped_column(ForeignKey("users.username",ondelete="CASCADE"))
 
-Base.metadata.create_all(engine)
-logging.info("DataBase Tables was created successfully.")
 
-def get_db():
-    try:
-        db=make_session()
+async def get_db():
+    async with make_session() as db:
         yield db
-    finally:
-        db.close()
+    
         
         

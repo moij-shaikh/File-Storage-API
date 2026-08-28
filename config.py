@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 load_dotenv()
-
+DATABASE_URL=os.getenv("DATABASE_URL")
 jwt_key=os.getenv("JWT_SECRET_KEY")
 jwt_algoritm=os.getenv("JWT_ALGORITHM")
 

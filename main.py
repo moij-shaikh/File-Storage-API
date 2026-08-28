@@ -21,7 +21,7 @@ async def lifespan(app:FastAPI):
 from routers import users , files
 load_dotenv()
 
-app=FastAPI()
+app=FastAPI(lifespan=lifespan)
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET_KEY"),

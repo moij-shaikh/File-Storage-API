@@ -4,10 +4,11 @@ from fastapi.responses import HTMLResponse
 from jose import jwt 
 from jose.exceptions import JWTError
 import secrets 
-from utils import pass_hasher , redis,supabase,send_email_to_verify,get_current_verified_user
+from utils import pass_hasher ,supabase,send_email_to_verify
+from auth import make_jwt_access_token , get_current_verified_user , make_jwt_refresh_token
 from schemas import Register_user
 from storage3.utils import StorageException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from database import get_db,User
@@ -24,80 +25,71 @@ jwt_key=os.getenv("JWT_SECRET_KEY")
 jwt_algoritm=os.getenv("JWT_ALGORITHM")
 
 @router.post("",tags=["User"],description="Here user can register")
-def Register_user(Data:Register_user,db:Session=Depends(get_db)):
-    user=User(full_name=Data.full_name,username=Data.username,email=Data.email,is_verified=False,password=pass_hasher.hash(Data.password))
-    existing=db.scalar(select(User).where(User.email==Data.email))
+async def Register_user(req:Request,Data:Register_user,db:AsyncSession=Depends(get_db)):
+    existing= await db.scalar(select(User).where(User.email==Data.email))
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="email already exist ")
-    existing=db.scalar(select(User).where(User.username==Data.username))
+    existing=await db.scalar(select(User).where(User.username==Data.username))
     if existing:
-       raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="username already exist ")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="username already exist ")
+    user=User(full_name=Data.full_name,username=Data.username,email=Data.email,is_verified=False,password=pass_hasher.hash(Data.password))
     db.add(user)
     try:
-        db.commit()
-        db.refresh(user)
+        await db.commit()
+        await db.refresh(user)
         token=secrets.token_urlsafe(32)
-        redis.set(f"email_verify_token:{token}",Data.username,ex=60*5)
+        await req.app.state.redis.set(f"email_verify_token:{token}",Data.username,ex=60*5)
         url=f"http://127.0.0.1:8000/user/verify_email?token={token}"
-        logging.info("%s was register",user.username)
         # bg_task.add_task(send_email_to_verify,Data.email,url)
         logging.info("%s was successfully registered and email for verification is Sended ",user.username)    
-        return "Successfully Registered ,Check Email for  Verification "
+        return f"Successfully Registered ,Check Email for  Verification {token}"
     except SQLAlchemyError:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="Database is down try again later.")
 
 
 @router.get("/verify_email",tags=["Auth"])
-def verify_email(token:str,db:Session=Depends(get_db)):
-    redis_token=redis.get(f"email_verify_token:{token}")
+async def verify_email(req:Request,token:str,db:AsyncSession=Depends(get_db)):
+    redis_token=await req.state.redis.get(f"email_verify_token:{token}")
     if redis_token is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="email not verified ")
-    else:
-        user=db.get(User,redis_token)
+    try:
+        user= await db.get(User,redis_token)
         if user is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="User Not Found ")
         user.is_verified=True
-        db.commit()
+        await db.commit()
         redis.delete(f"email_verify_token:{token}")
         logging.info("%s : Email was verified. ",user.username)
         return "Successfully Verified"
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="Database is down try again later.")
+
 
 @router.post("/login",tags=["User"])
-def user_login(res:Response,form_data:OAuth2PasswordRequestForm=Depends(),db:Session=Depends(get_db)):
+async def user_login(req:Request,res:Response,form_data:OAuth2PasswordRequestForm=Depends(),db:AsyncSession=Depends(get_db)):
     username = form_data.username
     password = form_data.password
-    user=db.get(User,username)
+    user=await db.get(User,username)
     if user is None:
         logging.info("unknown username attempted login: %s",username)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="User Not Found ")
     if not user.is_verified:
         logging.warning("%s was trying to login but its email is not verified ",user.username)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Verify Email  ")
-    
-    hashed_pass=user.password
-    is_same=pass_hasher.verify(password,hashed_pass)
+    is_same=pass_hasher.verify(password,user.password)
     if not is_same:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Password is not correct")
-    if is_same:
-        payload={
-            "sub":str(user.username),
-            "exp":datetime.now(timezone.utc)+timedelta(minutes=15)
-        }
-        payload2={
-                    "sub":str(user.username),
-                    "exp":datetime.now(timezone.utc)+timedelta(days=7)
-                }
-        access_token=jwt.encode(payload,jwt_key,algorithm=jwt_algoritm)
-        refresh_token=jwt.encode(payload2,jwt_key,algorithm=jwt_algoritm)
-        redis_token=f"refresh_token:{refresh_token}"
-        redis.set(redis_token,user.username,ex=timedelta(days=7))
-        res.set_cookie(key="refresh",value=refresh_token,httponly=True,samesite="lax",path="/user/refresh")
-        logging.info("%s was successfully login",username)
-        return {
-            "token_type":"bearer",
-            "access_token": access_token,
-        }
+    token=make_jwt_access_token(user.username)
+    refresh_token=make_jwt_refresh_token(user.username)
+    res.set_cookie(key="refresh_token",value=refresh_token,samesite="strict",httponly=True,max_age=60*60*24*10,path="/auth")
+    req.app.state.redis.set(f"refresh_token:{refresh_token}","1",ex=60*60*24*10)
+    logging.info("%s was successfully login",username)
+    return {
+        "token_type":"bearer",
+        "access_token":token
+    }
         
         
 @router.post("/refresh",tags=["Auth"])
@@ -136,7 +128,7 @@ def logout_user(res:Response,req:Request,user:str=Depends(get_current_verified_u
     return 
 
 @router.delete("/delete",tags=["User"])
-def delete_user(res:Response,req:Request,user:str=Depends(get_current_verified_user),db:Session=Depends(get_db)):
+def delete_user(res:Response,req:Request,user:str=Depends(get_current_verified_user),db:AsyncSession=Depends(get_db)):
     db_user=db.get(User,user)
     if db_user is None:
         raise HTTPException(detail="Something Went Wrong try again",status_code=status.HTTP_404_NOT_FOUND)
