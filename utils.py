@@ -27,4 +27,3 @@ scanner=clamd.ClamdUnixSocket("/run/clamav/clamd.ctl")
 
 import supabase
 supabase=supabase.create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
-drive=supabase.storage.from_('drive')

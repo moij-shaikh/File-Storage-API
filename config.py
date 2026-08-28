@@ -11,4 +11,3 @@ SUPABASE_SECRET_KEY=os.getenv("SUPABASE_SECRET_KEY")
 sender=os.getenv("Email_name")
 email_pass=os.getenv("Email_pass")
 
-secret_key=os.getenv("SESSION_SECRET_KEY")
