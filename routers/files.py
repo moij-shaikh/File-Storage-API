@@ -5,22 +5,21 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from storage3.utils import StorageException
-from utils import scanner ,supabase ,get_current_verified_user
+from utils import scanner ,supabase 
+from auth import get_current_verified_user
 from schemas import Rename_file
 import uuid
-import os
-from dotenv import load_dotenv
-load_dotenv()
-jwt_key=os.getenv("JWT_SECRET_KEY")
-jwt_algoritm=os.getenv("JWT_ALGORITHM")
+
 
 router=APIRouter(prefix="/file")
+
 @router.post("/upload",tags=["files"],description="This Routes is used to upload Files.")
 def upload_file(db:Session=Depends(get_db),user:str=Depends(get_current_verified_user),user_file:UploadFile=File(title="Choose file")):
     file_type=user_file.content_type
     allowed_files=["application/pdf","image/png","image/jpg","image/jpeg"]
     if file_type not in allowed_files:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Image not supported") 
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Image not supported")
+     
     scan_result=scanner.instream(user_file.file)
     if scan_result.get('stream')[0] !="OK":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Found virus ")

@@ -3,7 +3,20 @@ from fastapi import FastAPI
 from dotenv import load_dotenv
 from starlette.middleware.sessions import SessionMiddleware
 import logger
-import database
+from contextlib import asynccontextmanager
+import  redis.asyncio as redis
+
+
+@asynccontextmanager
+async def lifespan(app:FastAPI):
+    app.state.redis=redis.Redis(
+        host="localhost",
+        port=6379,
+        decode_responses=True        
+    )
+    yield
+    app.state.redis.close()
+
 
 from routers import users , files
 load_dotenv()

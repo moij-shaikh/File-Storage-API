@@ -1,34 +1,11 @@
-import os
-from dotenv import load_dotenv
-load_dotenv()
-from pwdlib import PasswordHash
-import redis
-from fastapi.security import OAuth2PasswordBearer
-from fastapi import Depends,HTTPException,status
-from jose import jwt , JWTError
-jwt_key=os.getenv("JWT_SECRET_KEY")
-jwt_algoritm=os.getenv("JWT_ALGORITHM")
+from config import email_pass , sender , SUPABASE_SECRET_KEY , SUPABASE_URL
 
-get_jwt_token=OAuth2PasswordBearer(tokenUrl="/user/login")
+from pwdlib import PasswordHash
+
 pass_hasher=PasswordHash.recommended()
 
-def get_current_verified_user(token:str=Depends(get_jwt_token)):
-    try:
-        payload=jwt.decode(token,jwt_key,algorithms=[jwt_algoritm])
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Login First")
-    user=payload.get("sub")
-    return user
-
-redis=redis.Redis(
-        host="localhost",
-        port=6379,
-        decode_responses=True        
-    )
-
 import smtplib
-sender=os.getenv("Email_name")
-email_pass=os.getenv("Email_pass")
+
 from email.message import EmailMessage
 def send_email_to_verify(email,url):
     msg=EmailMessage()
@@ -49,10 +26,5 @@ scanner=clamd.ClamdUnixSocket("/run/clamav/clamd.ctl")
     
 
 import supabase
-SUPABASE_URL=os.getenv("SUPABASE_URL")
-SUPABASE_SECRET_KEY=os.getenv("SUPABASE_SECRET_KEY")
-supabase=supabase.create_client(
-    SUPABASE_URL,
-    SUPABASE_SECRET_KEY
-    
-)
+supabase=supabase.acreate_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
+drive=supabase.storage.from_('drive')

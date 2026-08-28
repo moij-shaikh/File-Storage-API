@@ -18,12 +18,13 @@ import logging
 from datetime import timedelta , timezone,datetime
 
 load_dotenv()
+
 router=APIRouter(prefix="/user")
 jwt_key=os.getenv("JWT_SECRET_KEY")
 jwt_algoritm=os.getenv("JWT_ALGORITHM")
 
-@router.post("/register",tags=["User"],description="Here user can register")
-def Register_user(bg_task:BackgroundTasks,Data:Register_user,db:Session=Depends(get_db)):
+@router.post("",tags=["User"],description="Here user can register")
+def Register_user(Data:Register_user,db:Session=Depends(get_db)):
     user=User(full_name=Data.full_name,username=Data.username,email=Data.email,is_verified=False,password=pass_hasher.hash(Data.password))
     existing=db.scalar(select(User).where(User.email==Data.email))
     if existing:
@@ -32,15 +33,19 @@ def Register_user(bg_task:BackgroundTasks,Data:Register_user,db:Session=Depends(
     if existing:
        raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="username already exist ")
     db.add(user)
-    db.commit()
-    db.refresh(user)
-    token=secrets.token_urlsafe(32)
-    redis.set(f"email_verify_token:{token}",Data.username,ex=60*5)
-    url=f"http://127.0.0.1:8000/user/verify_email?token={token}"
-    logging.info("%s was register",user.username)
-    bg_task.add_task(send_email_to_verify,Data.email,url)
-    logging.info("%s was successfully registered and email for verification is Sended ",user.username)    
-    return "Successfully Registered ,Check Email for  Verification "
+    try:
+        db.commit()
+        db.refresh(user)
+        token=secrets.token_urlsafe(32)
+        redis.set(f"email_verify_token:{token}",Data.username,ex=60*5)
+        url=f"http://127.0.0.1:8000/user/verify_email?token={token}"
+        logging.info("%s was register",user.username)
+        # bg_task.add_task(send_email_to_verify,Data.email,url)
+        logging.info("%s was successfully registered and email for verification is Sended ",user.username)    
+        return "Successfully Registered ,Check Email for  Verification "
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="Database is down try again later.")
 
 
 @router.get("/verify_email",tags=["Auth"])
