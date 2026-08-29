@@ -27,8 +27,8 @@ A backend API for Storing File like Images , Text file , Videos etc Online , Bui
 
 #### 1. Clone the repository
 
-git clone
-cd
+git clone  https://github.com/moij-shaikh/File-Storage-API.git
+cd File-Storage-API
 
 #### 2. Create virtual environment
 
