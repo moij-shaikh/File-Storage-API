@@ -20,13 +20,15 @@ async def upload_file(db:AsyncSession=Depends(get_db),user:str=Depends(get_curre
 
     if file_type not in allowed_files:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Image not supported")
-     
+    file_data=user_file.file.read()
+    if len(file_data) > 10*1024*1024:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="File Size Bigger than 10 MB")
+
+    user_file.file.seek(0)
     scan_result=scanner.instream(user_file.file)
     if scan_result.get('stream')[0] !="OK":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Found virus ")
-    user_file.file.seek(0)
 
-    file_data=user_file.file.read()
     storage=supabase.storage.from_("drive")
     file_name=str(uuid.uuid4())
     original_file_name=user_file.filename

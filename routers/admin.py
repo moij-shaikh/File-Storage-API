@@ -15,6 +15,9 @@ router=APIRouter(prefix="/admin")
 @router.post("/login")
 async def admin__login(res:Response,req:Request,form_data:OAuth2PasswordRequestForm=Depends(),db:AsyncSession=Depends(get_db)):
     admin=await db.get(Admin,form_data.username)
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="No Admin Found")
+
     if not pass_hasher.verify(form_data.password,admin.password):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="Try again later")
     access_token=make_jwt_access_token(sub=admin.username,role="admin")
