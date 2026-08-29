@@ -4,7 +4,7 @@ from jose import jwt , JWTError
 from config import jwt_algoritm , jwt_key
 from datetime import datetime , timezone, timedelta
 
-get_jwt_token=OAuth2PasswordBearer(tokenUrl="/user/login")
+get_jwt_token=OAuth2PasswordBearer(tokenUrl="/user/login",scheme_name="User")
 
 def get_current_verified_user(token:str=Depends(get_jwt_token)):
     try:
@@ -14,23 +14,27 @@ def get_current_verified_user(token:str=Depends(get_jwt_token)):
     user=payload.get("sub")
     return user
 
-def make_jwt_access_token(sub)->str:
+def make_jwt_access_token(sub,role="user")->str:
     payload={
         "sub":str(sub),
-        'exp':datetime.now(timezone.utc) + timedelta(minutes=10)
+        'exp':datetime.now(timezone.utc) + timedelta(minutes=10),
+        "role":role
+
     }
     token= jwt.encode(payload,jwt_key,algorithm=jwt_algoritm)
     return  token
 
-def make_jwt_refresh_token(sub)->str:
+def make_jwt_refresh_token(sub,role="user")->str:
     payload={
         "sub":str(sub),
-        'exp':datetime.now(timezone.utc) + timedelta(days=10)
+        'exp':datetime.now(timezone.utc) + timedelta(days=10),
+        "role":role
     }
     token= jwt.encode(payload,jwt_key,algorithm=jwt_algoritm)
     return  token
 
 async def check_generate_refresh_token(req:Request)->str:
+
     token=req.cookies.get("refresh")
     if not token:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Login In")
@@ -43,3 +47,16 @@ async def check_generate_refresh_token(req:Request)->str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Login Fails")
     new_token=make_jwt_access_token(redis_token)
     return new_token
+
+
+get_admin_jwt_token=OAuth2PasswordBearer(tokenUrl="/admin/login",scheme_name="Admin")
+
+def check_admin(token:str=Depends(get_admin_jwt_token)):
+    try:
+        payload=jwt.decode(token,jwt_key,algorithms=[jwt_algoritm])
+        if payload.get("role")!= "admin":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="You can not access this API.")
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Login First")
+    admin=payload.get("sub")
+    return admin

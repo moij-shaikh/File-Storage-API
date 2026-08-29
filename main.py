@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import logger
 
-from routers import users , files
+from routers import users , files , admin
 
 @asynccontextmanager
 async def lifespan(app:FastAPI):
@@ -18,3 +18,4 @@ async def lifespan(app:FastAPI):
 app=FastAPI(lifespan=lifespan)
 app.include_router(files.router)
 app.include_router(users.router)
+app.include_router(admin.router)

@@ -24,7 +24,11 @@ class UserFile(Base):
     stored_file_name:Mapped[str]
     file_type:Mapped[str]
     username:Mapped[str]=mapped_column(ForeignKey("users.username",ondelete="CASCADE"))
-
+class Admin(Base):
+    __tablename__="admin"
+    username:Mapped[str]=mapped_column(primary_key=True)
+    password:Mapped[str]
+    email:Mapped[str]
 
 async def get_db():
     async with make_session() as db:
