@@ -1,4 +1,4 @@
-from fastapi import APIRouter ,Depends,Request ,HTTPException , status,Response
+from fastapi import APIRouter ,Depends,Request ,HTTPException , status,Response , BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 import secrets 
 from utils import pass_hasher ,supabase,send_email_to_verify
@@ -15,7 +15,7 @@ import logging
 router=APIRouter(prefix="/user")
 
 @router.post("",tags=["User"],description="Here user can register")
-async def Register_user(req:Request,Data:Register_user,db:AsyncSession=Depends(get_db)):
+async def Register_user(bg_task:BackgroundTasks,req:Request,Data:Register_user,db:AsyncSession=Depends(get_db)):
     existing= await db.scalar(select(User).where(User.email==Data.email))
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="email already exist ")
@@ -30,7 +30,7 @@ async def Register_user(req:Request,Data:Register_user,db:AsyncSession=Depends(g
         token=secrets.token_urlsafe(32)
         await req.app.state.redis.set(f"email_verify_token:{token}",Data.username,ex=60*5)
         url=f"http://127.0.0.1:8000/user/verify_email?token={token}"
-        # bg_task.add_task(send_email_to_verify,Data.email,url)
+        bg_task.add_task(send_email_to_verify,Data.email,url)
         logging.info("%s was successfully registered and email for verification is Sended ",user.username)    
         return f"Successfully Registered ,Check Email for  Verification {token}"
     except SQLAlchemyError:
@@ -92,7 +92,7 @@ async def user_login(req:Request,res:Response,form_data:OAuth2PasswordRequestFor
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Password is not correct")
     token=make_jwt_access_token(user.username)
     refresh_token=make_jwt_refresh_token(user.username)
-    res.set_cookie(key="refresh_token",value=refresh_token,samesite="strict",httponly=True,max_age=60*60*24*10,path="/auth")
+    res.set_cookie(key="refresh_token",value=refresh_token,samesite="strict",httponly=True,max_age=60*60*24*10,path="/user")
     await req.app.state.redis.set(f"refresh_token:{refresh_token}",user.username,ex=60*60*24*10)
     logging.info("%s was successfully login",username)
     return {
@@ -116,6 +116,8 @@ async def logout_user(res:Response,req:Request,user:str=Depends(get_current_veri
     if redis_token is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="user Already Logout")
     await req.app.state.redis.delete(f"refresh_token:{refresh_token}")
-    res.delete_cookie("refresh_token")
+    res.delete_cookie("refresh_token",path="/user")
     logging.info("%s was logout successfully",user)
-    return 
+    return {
+        "message":"Logout"
+    }

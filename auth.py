@@ -34,8 +34,7 @@ def make_jwt_refresh_token(sub,role="user")->str:
     return  token
 
 async def check_generate_refresh_token(req:Request)->str:
-
-    token=req.cookies.get("refresh")
+    token=req.cookies.get("refresh_token")
     if not token:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Login In")
     try:

@@ -12,7 +12,7 @@ import uuid
 
 router=APIRouter(prefix="/admin")
 
-@router.post("/login")
+@router.post("/login",tags=["Admin"])
 async def admin__login(res:Response,req:Request,form_data:OAuth2PasswordRequestForm=Depends(),db:AsyncSession=Depends(get_db)):
     admin=await db.get(Admin,form_data.username)
     if not admin:
@@ -28,7 +28,7 @@ async def admin__login(res:Response,req:Request,form_data:OAuth2PasswordRequestF
         "token_type":"bearer",
         "access_token":access_token
     }
-@router.post("/logout")
+@router.post("/logout",tags=["Admin"])
 async def admin__logout(res:Response,req:Request,admin:str=Depends(check_admin)):
     refresh_token=req.cookies.get("admin_refresh_token")
     if not refresh_token:
@@ -43,14 +43,14 @@ async def admin__logout(res:Response,req:Request,admin:str=Depends(check_admin))
         "message":"Logout Successfully"
     }
 
-@router.get("/folder")
+@router.get("/folder",tags=["Admin Folder"])
 def admin__show_folders(admin:str=Depends(check_admin)):
     storage=supabase.storage.from_("drive")
     folders=storage.list()
     display=[folder.get("name") for folder in folders]
     return display
 
-@router.get("/folder/{name}")
+@router.get("/folder/{name}",tags=["Admin Folder"])
 def admin__show_file(name:str,admin:str=Depends(check_admin)):
     storage=supabase.storage.from_("drive")
     folder=storage.list(name)

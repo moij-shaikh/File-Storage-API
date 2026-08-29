@@ -95,7 +95,7 @@ async def delete_uploaded_file(id:int,user:str=Depends(get_current_verified_user
         drive=supabase.storage.from_("drive")
         file_name=db_file.original_file_name
         stored_file=db_file.stored_file_name
-        db.delete(db_file)
+        await db.delete(db_file)
         drive.remove([f"{user}/{stored_file}"])
         await db.commit()
         return f"Successfully Deleted file: {file_name}"
