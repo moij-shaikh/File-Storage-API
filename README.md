@@ -48,16 +48,16 @@ The project uses config.py to load configuration values from the .env file.
 
 ###### Example:
 
-. SUPABASE_SECRET_KEY= "your values"
-. SUPABASE_URL="your values"
+- SUPABASE_SECRET_KEY= "your values"
+- SUPABASE_URL="your values"
 
-. DATABASE_URL= "your values"
-. SESSION_SECRET_KEY= "your values"
-. JWT_SECRET_KEY= "your values"
-. JWT_ALGORITHM="your values"
-.
-. Email_name= "your values"
-. Email_pass= "your values"
+- DATABASE_URL= "your values"
+- SESSION_SECRET_KEY= "your values"
+- JWT_SECRET_KEY= "your values"
+- JWT_ALGORITHM="your values"
+
+- Email_name= "your values"
+- Email_pass= "your values"
 
 #### 5. Run database migrations
 
@@ -67,7 +67,11 @@ alembic upgrade head
 
 redis-cli
 
-#### 7. Start thr API
+#### 7. Start the API
+Run the create_admin.py to make an admin user.
+
+
+#### 8. Start the API
 
 uvicorn main:app --reload
 
@@ -76,3 +80,4 @@ http://127.0.0.1:8000
 
 API Testing:
 http://127.0.0.1:8000/docs
+
